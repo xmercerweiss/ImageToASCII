@@ -9,6 +9,7 @@ density = 4  # Global variable init'd to 4, may be overwritten via -<Integer> op
 MSG_PREFACE = "ImageToASCII: "
 NO_IMAGE_ERR_MSG = f"{MSG_PREFACE}Missing required image file input"
 UNREC_ARG_ERR_MSG = f"{MSG_PREFACE}Unrecognized argument passed"
+INV_DENS_ERR_MSG = f"{MSG_PREFACE}Invalid pixel density"
 
 characters = OrderedDict()
 characters[  0] = " "
@@ -83,6 +84,8 @@ def process_args(args, options):
 
 
 def image_to_ascii(image):
+    if density <= 0:
+        raise ValueError(INV_DENS_ERR_MSG)
     output = ""
     # Vertical density is doubled because each character is twice as tall as it is wide.
     for y in range(0, image.size[1], density * 2):
