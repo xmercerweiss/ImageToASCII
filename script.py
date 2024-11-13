@@ -3,8 +3,41 @@ import sys
 
 from PIL import Image
 
+from responses import COLORS
+
+LUMIN_THRESHOLD = 125   
+RED_THRESHOLD = 90      
+GREEN_THRESHOLD = 140   
+BLUE_THRESHOLD = 120    
+
+BLACK_TEXT      = "\033[30m"
+
+RED_TEXT        = "\033[91m"
+DARK_RED_TEXT   = ""
+
+GREEN_TEXT      = "\033[92m"
+DARK_GREEN_TEXT = "\033[32m"
+
+BLUE_TEXT       = "\033[94m"
+DARK_BLUE_TEXT  = "\033[34m"
+
+CYAN_TEXT       = "\033[96m"
+TURQUOISE_TEXT  = "\033[36m"
+
+MAGENTA_TEXT    = "\033[95m"
+PURPLE_TEXT     = "\033[35m"
+
+YELLOW_TEXT     = "\033[93m"
+ORANGE_TEXT     = "\033[33m"
+
+WHITE_TEXT      = "\033[97m"
+GRAY_TEXT       = "\033[90m"
+
 OPTION_CHAR = "-"
-density = 4  # Global variable init'd to 4, may be overwritten via -<Integer> option
+NULL_CHAR = "█"
+
+is_colored = False  # Color boolean init'd to false, may be overwritten via -c option
+density = 4         # Density init'd to 4, may be overwritten via -<Integer> option
 
 MSG_PREFACE = "ImageToASCII: "
 NO_IMAGE_ERR_MSG = f"{MSG_PREFACE}Missing required image file input"
@@ -49,7 +82,7 @@ characters[256] = "@"
 def main():
     args, options = split_args(sys.argv)
     process_args(args, options)
-    image = Image.open(args[0])
+    image = Image.open(args[0]).convert("RGB")
     text = image_to_ascii(image)
     print(text)
     
@@ -78,34 +111,68 @@ def process_args(args, options):
         raise RuntimeError(UNREC_ARG_ERR_MSG)
     
     for o in options:
+    
         if o.isnumeric():
             global density
             density = int(o)
+        
+        if o.lower() == "c":
+            global is_colored
+            is_colored = True
 
 
 def image_to_ascii(image):
     if density <= 0:
         raise ValueError(INV_DENS_ERR_MSG)
     output = ""
+    pixels = image.load()
     # Vertical density is doubled because each character is twice as tall as it is wide.
     for y in range(0, image.size[1], density * 2):
         for x in range(0, image.size[0], density):
-            lumins = get_luminosity(image, x, y)
+            rgb = pixels[x, y][:3]
+            lumins = sum(rgb) // 3
+            if is_colored:
+                output += get_color_text(rgb, lumins)
             output += get_char_of_luminosity(lumins)
         output += "\n"
     return output
+    
+    
+def get_color_text(rgb, lumins):
+    is_light = lumins >= LUMIN_THRESHOLD
+    
+    code = set()
+    if rgb[0] >= RED_THRESHOLD:
+        code.add(COLORS.RED_FLAG)
+    if rgb[1] >= GREEN_THRESHOLD:
+        code.add(COLORS.GREEN_FLAG)
+    if rgb[2] >= BLUE_THRESHOLD:
+        code.add(COLORS.BLUE_FLAG)
+        
+    match code:
+        case COLORS.RED_CODE:
+            return RED_TEXT if is_light else DARK_RED_TEXT
+        case COLORS.GREEN_CODE:
+            return GREEN_TEXT if is_light else DARK_GREEN_TEXT
+        case COLORS.BLUE_CODE:
+            return BLUE_TEXT if is_light else DARK_BLUE_TEXT
+        case COLORS.CYAN_CODE:
+            return CYAN_TEXT if is_light else TURQUOISE_TEXT
+        case COLORS.MAGENTA_CODE:
+            return MAGENTA_TEXT if is_light else PURPLE_TEXT
+        case COLORS.YELLOW_CODE:
+            return YELLOW_TEXT if is_light else ORANGE_TEXT
+        case COLORS.WHITE_CODE:
+            return WHITE_TEXT if is_light else GRAY_TEXT
+        case _:
+            return BLACK_TEXT
 
 
 def get_char_of_luminosity(lumins):
     for threshold, char in characters.items():
         if lumins <= threshold:
             return char
-
-
-def get_luminosity(image, x, y):
-    rgb = image.load()[x, y][:3]
-    output = sum(rgb) // 3
-    return output
+    return NULL_CHAR
 
 
 if __name__ == "__main__":
